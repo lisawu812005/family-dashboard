@@ -255,6 +255,7 @@ async function loadPhotos() {
 }
 
 loadPhotos();
+loadWeather();
 function getWeatherIcon(code) {
   if (code === 0) return "☀️";
   if ([1, 2].includes(code)) return "🌤️";

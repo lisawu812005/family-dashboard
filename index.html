@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Family Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f6f7fb;
+      margin: 0;
+      padding: 24px;
+      color: #222;
+    }
+    .container {
+      max-width: 1100px;
+      margin: auto;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+      font-size: 15px;
+    }
+    .logout {
+      background: #666;
+      float: right;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    input {
+      padding: 10px;
+      width: 70%;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    li {
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div id="loginBox" class="card">
+      <h1>Family Dashboard</h1>
+      <p>請使用 Google 帳號登入。</p>
+      <button id="loginBtn">使用 Google 登入</button>
+    </div>
+
+    <div id="noAccessBox" class="card" style="display:none;">
+      <h1>沒有使用權限</h1>
+      <p>這個 Dashboard 只開放指定家庭成員使用。</p>
+      <button id="logoutBtnNoAccess">登出</button>
+    </div>
+
+    <div id="dashboard" style="display:none;">
+      <div class="card">
+        <button class="logout" id="logoutBtn">登出</button>
+        <h1>Family Dashboard</h1>
+        <p id="userEmail"></p>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>📅 今日日期</h2>
+          <p id="today"></p>
+        </div>
+
+        <div class="card">
+          <h2>☁️ 台北市天氣</h2>
+          <p>下一步接每小時天氣預報</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>✝️ 今日聖經箴言</h2>
+        <p id="verse"></p>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>✅ 家庭待辦</h2>
+          <input id="todoInput" placeholder="新增待辦事項" />
+          <button id="addTodoBtn">新增</button>
+          <ul id="todoList"></ul>
+        </div>
+
+        <div class="card">
+          <h2>🛒 待採買清單</h2>
+          <input id="shoppingInput" placeholder="新增採買品項" />
+          <button id="addShoppingBtn">新增</button>
+          <ul id="shoppingList"></ul>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>💰 家庭財務</h2>
+          <p>下一步接 Firestore 財務資料。</p>
+        </div>
+
+        <div class="card">
+          <h2>📂 文件中心</h2>
+          <p>下一步做文件連結新增與編輯。</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      onSnapshot,
+      updateDoc,
+      deleteDoc,
+      doc,
+      serverTimestamp,
+      query,
+      orderBy
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBeADN5HDyik4U4cp8c0B3MGtHLU57sFxo",
+      authDomain: "family-dashboard-1b478.firebaseapp.com",
+      projectId: "family-dashboard-1b478",
+      storageBucket: "family-dashboard-1b478.firebasestorage.app",
+      messagingSenderId: "954746749479",
+      appId: "1:954746749479:web:816a1c497a8d2e4802c402",
+      measurementId: "G-20X1E8N5H0"
+    };
+
+    const allowedEmails = [
+      "lisawu812005@gmail.com”,
+      “dog90147@gmail.com"
+    ];
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    const loginBox = document.getElementById("loginBox");
+    const dashboard = document.getElementById("dashboard");
+    const noAccessBox = document.getElementById("noAccessBox");
+
+    document.getElementById("loginBtn").onclick = () => signInWithPopup(auth, provider);
+    document.getElementById("logoutBtn").onclick = () => signOut(auth);
+    document.getElementById("logoutBtnNoAccess").onclick = () => signOut(auth);
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        loginBox.style.display = "block";
+        dashboard.style.display = "none";
+        noAccessBox.style.display = "none";
+        return;
+      }
+
+      if (!allowedEmails.includes(user.email)) {
+        loginBox.style.display = "none";
+        dashboard.style.display = "none";
+        noAccessBox.style.display = "block";
+        return;
+      }
+
+      loginBox.style.display = "none";
+      noAccessBox.style.display = "none";
+      dashboard.style.display = "block";
+      document.getElementById("userEmail").textContent = user.email;
+
+      loadTodos();
+      loadShopping();
+    });
+
+    const now = new Date();
+    document.getElementById("today").textContent =
+      now.toLocaleDateString("zh-TW", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        weekday: "long"
+      });
+
+    const verses = [
+      "你要專心仰賴耶和華，不可倚靠自己的聰明。— 箴言 3:5",
+      "應當一無掛慮，只要凡事藉著禱告、祈求和感謝，將你們所要的告訴神。— 腓立比書 4:6",
+      "我們愛，因為神先愛我們。— 約翰一書 4:19",
+      "耶和華是我的牧者，我必不致缺乏。— 詩篇 23:1"
+    ];
+    document.getElementById("verse").textContent =
+      verses[now.getDate() % verses.length];
+
+    document.getElementById("addTodoBtn").onclick = async () => {
+      const input = document.getElementById("todoInput");
+      if (!input.value.trim()) return;
+      await addDoc(collection(db, "todos"), {
+        title: input.value.trim(),
+        completed: false,
+        createdAt: serverTimestamp()
+      });
+      input.value = "";
+    };
+
+    function loadTodos() {
+      const q = query(collection(db, "todos"), orderBy("createdAt", "desc"));
+      onSnapshot(q, (snapshot) => {
+        const list = document.getElementById("todoList");
+        list.innerHTML = "";
+        snapshot.forEach((item) => {
+          const data = item.data();
+          const li = document.createElement("li");
+          li.innerHTML = `
+            <input type="checkbox" ${data.completed ? "checked" : ""}>
+            ${data.title}
+            <button style="background:#999;margin-left:8px;">刪除</button>
+          `;
+          li.querySelector("input").onchange = () => {
+            updateDoc(doc(db, "todos", item.id), {
+              completed: !data.completed
+            });
+          };
+          li.querySelector("button").onclick = () => {
+            deleteDoc(doc(db, "todos", item.id));
+          };
+          list.appendChild(li);
+        });
+      });
+    }
+
+    document.getElementById("addShoppingBtn").onclick = async () => {
+      const input = document.getElementById("shoppingInput");
+      if (!input.value.trim()) return;
+      await addDoc(collection(db, "shopping"), {
+        item: input.value.trim(),
+        checked: false,
+        createdAt: serverTimestamp()
+      });
+      input.value = "";
+    };
+
+    function loadShopping() {
+      const q = query(collection(db, "shopping"), orderBy("createdAt", "desc"));
+      onSnapshot(q, (snapshot) => {
+        const list = document.getElementById("shoppingList");
+        list.innerHTML = "";
+        snapshot.forEach((item) => {
+          const data = item.data();
+          const li = document.createElement("li");
+          li.innerHTML = `
+            <input type="checkbox" ${data.checked ? "checked" : ""}>
+            ${data.item}
+            <button style="background:#999;margin-left:8px;">刪除</button>
+          `;
+          li.querySelector("input").onchange = () => {
+            updateDoc(doc(db, "shopping", item.id), {
+              checked: !data.checked
+            });
+          };
+          li.querySelector("button").onclick = () => {
+            deleteDoc(doc(db, "shopping", item.id));
+          };
+          list.appendChild(li);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

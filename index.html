@@ -88,32 +88,9 @@
       </div>
 <div class="card">
   <h2>📷 Family Moments</h2>
-
-  <div id="photoCarousel" style="
-    width:100%;
-    height:320px;
-    border-radius:12px;
-    overflow:hidden;
-    background:#eee;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  ">
-    <img
-      id="carouselImage"
-      src="https://placehold.co/1200x600?text=Family+Moments"
-      style="
-        width:100%;
-        height:100%;
-        object-fit:cover;
-      "
-    >
-  </div>
-
-  <div style="margin-top:12px;">
-    <button id="uploadPhotoBtn">
-      上傳照片
-    </button>
+  <div id="photoCarousel" style="height:320px;border-radius:16px;overflow:hidden;background:#eee;display:flex;align-items:center;justify-content:center;">
+    <img id="carouselImage" src="" style="width:100%;height:100%;object-fit:cover;display:none;">
+    <p id="photoMessage">載入照片中...</p>
   </div>
 </div>
       <div class="card">
@@ -226,7 +203,38 @@
       loadTodos();
       loadShopping();
     });
+let photos = [];
+let currentPhoto = 0;
 
+async function loadPhotos() {
+  try {
+    const response = await fetch("photos/photos.json");
+    photos = await response.json();
+
+    if (!photos.length) {
+      document.getElementById("photoMessage").textContent = "尚未加入照片";
+      return;
+    }
+
+    const img = document.getElementById("carouselImage");
+    const message = document.getElementById("photoMessage");
+
+    img.src = "photos/" + photos[0];
+    img.style.display = "block";
+    message.style.display = "none";
+
+    setInterval(() => {
+      currentPhoto = (currentPhoto + 1) % photos.length;
+      img.src = "photos/" + photos[currentPhoto];
+    }, 5000);
+
+  } catch (error) {
+    document.getElementById("photoMessage").textContent = "照片載入失敗，請檢查 photos.json";
+    console.error(error);
+  }
+}
+
+loadPhotos();
     const now = new Date();
     document.getElementById("today").textContent =
       now.toLocaleDateString("zh-TW", {

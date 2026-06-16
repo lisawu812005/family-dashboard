@@ -284,6 +284,7 @@ async function loadPhotos() {
 
 loadPhotos();
 loadWeather();
+    loadMorningVerse();
 function getWeatherIcon(code) {
   if (code === 0) return "☀️";
   if ([1, 2].includes(code)) return "🌤️";
@@ -387,6 +388,30 @@ async function loadWeather() {
   } catch (error) {
     document.getElementById("currentWeather").textContent =
       "天氣資料載入失敗";
+    console.error(error);
+  }
+}
+async function loadMorningVerse() {
+  const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSmz-XJcjk1E9wzq43H6gfPpkmg1FjhH2smjh_zuL7mpELNNSBMl1ZY2--LO66EEIMHdqbz0bfJemfP/pub?output=csv";
+
+  try {
+    const response = await fetch(csvUrl);
+    const text = await response.text();
+
+    const rows = text
+      .trim()
+      .split("\n")
+      .map(row => row.split(","));
+
+    const latest = rows[rows.length - 1];
+
+    document.getElementById("morningVerseDate").textContent = latest[0] || "";
+    document.getElementById("morningVerseTitle").textContent = latest[1] || "今日清晨箴言";
+    document.getElementById("morningVerseContent").textContent = latest.slice(2).join(",") || "尚未更新內容";
+
+  } catch (error) {
+    document.getElementById("morningVerseContent").textContent =
+      "清晨箴言載入失敗，請檢查 Google Sheet 發布設定。";
     console.error(error);
   }
 }

@@ -159,9 +159,25 @@
 </div>
 <div class="card">
   <h2>📷 Family Moments</h2>
-  <div id="photoCarousel" style="height:320px;border-radius:16px;overflow:hidden;background:#eee;display:flex;align-items:center;justify-content:center;">
-    <img id="carouselImage" src="" style="width:100%;height:100%;object-fit:cover;display:none;">
-    <p id="photoMessage">載入照片中...</p>
+
+  <div id="photoCarousel" style="
+    height:320px;
+    border-radius:16px;
+    overflow:hidden;
+    background:#eee;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  ">
+    <img
+      id="carouselImage"
+      src=""
+      style="width:100%;height:100%;object-fit:cover;display:none;"
+    >
+
+    <p id="photoMessage">
+      載入照片中...
+    </p>
   </div>
 </div>
 <div class="card">
@@ -352,8 +368,8 @@ async function loadPhotos() {
 
 loadPhotos();
 loadWeather();
-    loadMorningVerse();
-    loadFinance();
+loadMorningVerse();
+loadFinance();
     function money(value) {
   const number = Number(String(value).replace(/,/g, ""));
   if (isNaN(number)) return value;

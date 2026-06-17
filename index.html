@@ -51,6 +51,57 @@
     li {
       margin: 8px 0;
     }
+    .finance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.finance-card {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.finance-label {
+  color: #666;
+  font-size: 14px;
+}
+
+.finance-value {
+  font-size: 24px;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.progress-bg {
+  width: 100%;
+  height: 12px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #2563eb;
+  border-radius: 999px;
+}
+
+.progress-bar.warning {
+  background: #dc2626;
+}
+
+.category-row {
+  margin-bottom: 18px;
+}
+
+.category-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 15px;
+}
   </style>
 </head>
 <body>
@@ -144,9 +195,25 @@
 
       <div class="grid">
         <div class="card">
-          <h2>💰 家庭財務</h2>
-          <p>下一步接 Firestore 財務資料。</p>
-        </div>
+  <h2>💰 家庭財務</h2>
+
+  <div id="financeSummary" class="finance-grid">
+    載入財務資料中...
+  </div>
+
+  <div style="margin-top:18px;">
+    <h3>本月預算使用率</h3>
+    <p id="budgetUsageText"></p>
+    <div class="progress-bg">
+      <div id="budgetUsageBar" class="progress-bar"></div>
+    </div>
+  </div>
+
+  <div style="margin-top:22px;">
+    <h3>各類別預算進度</h3>
+    <div id="categoryBudgetList"></div>
+  </div>
+</div>
 
         <div class="card">
           <h2>📂 文件中心</h2>
@@ -286,6 +353,125 @@ async function loadPhotos() {
 loadPhotos();
 loadWeather();
     loadMorningVerse();
+    loadFinance();
+    function money(value) {
+  const number = Number(String(value).replace(/,/g, ""));
+  if (isNaN(number)) return value;
+  return number.toLocaleString("zh-TW");
+}
+
+function parseMoney(value) {
+  return Number(String(value).replace(/,/g, "")) || 0;
+}
+
+function getDaysLeftThisMonth() {
+  const today = new Date();
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  return lastDay.getDate() - today.getDate() + 1;
+}
+
+async function loadFinance() {
+  const summaryUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRwlLj8wheV8LAE0ghLUDRdlW1MqSYwXAw1dm6Zv6rUnPypn7yQ-Oc13qMcs3-rSFe3nQaQsQq-u8iA/pub?gid=2064557099&single=true&output=csv";
+
+  const budgetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRwlLj8wheV8LAE0ghLUDRdlW1MqSYwXAw1dm6Zv6rUnPypn7yQ-Oc13qMcs3-rSFe3nQaQsQq-u8iA/pub?gid=0&single=true&output=csv";
+
+  try {
+    const summaryText = await (await fetch(summaryUrl)).text();
+    const budgetText = await (await fetch(budgetUrl)).text();
+
+    const summaryRows = Papa.parse(summaryText, {
+      header: true,
+      skipEmptyLines: true
+    }).data;
+
+    const budgetRows = Papa.parse(budgetText, {
+      header: true,
+      skipEmptyLines: true
+    }).data;
+
+    const summary = {};
+    summaryRows.forEach(row => {
+      summary[row["項目"]] = parseMoney(row["金額"]);
+    });
+
+    const income = summary["收入"] || 0;
+    const subsidy = summary["托育補助"] || 0;
+    const expense = summary["支出"] || 0;
+    const monthlyBudget = summary["月預算"] || 0;
+    const lastMonthBalance = summary["上月剩餘"] || 0;
+    const balance = summary["本月結餘"] || 0;
+    const daysLeft = getDaysLeftThisMonth();
+
+    document.getElementById("financeSummary").innerHTML = `
+      <div class="finance-card">
+        <div class="finance-label">本月結餘</div>
+        <div class="finance-value">$${money(balance)}</div>
+      </div>
+
+      <div class="finance-card">
+        <div class="finance-label">收入</div>
+        <div class="finance-value">$${money(income)}</div>
+      </div>
+
+      <div class="finance-card">
+        <div class="finance-label">托育補助</div>
+        <div class="finance-value">$${money(subsidy)}</div>
+      </div>
+
+      <div class="finance-card">
+        <div class="finance-label">支出</div>
+        <div class="finance-value">$${money(expense)}</div>
+      </div>
+
+      <div class="finance-card">
+        <div class="finance-label">剩餘天數</div>
+        <div class="finance-value">${daysLeft} 天</div>
+      </div>
+    `;
+
+    const usagePercent = monthlyBudget ? Math.round((expense / monthlyBudget) * 100) : 0;
+
+    document.getElementById("budgetUsageText").textContent =
+      `$${money(expense)} / $${money(monthlyBudget)}｜${usagePercent}%`;
+
+    const usageBar = document.getElementById("budgetUsageBar");
+    usageBar.style.width = Math.min(usagePercent, 100) + "%";
+    if (usagePercent > 100) usageBar.classList.add("warning");
+
+    let categoryHtml = "";
+
+    budgetRows.forEach(row => {
+      const category = row["類別"];
+      const budget = parseMoney(row["預算"]);
+      const spent = parseMoney(row["已支出"]);
+      const percent = budget ? Math.round((spent / budget) * 100) : 0;
+      const over = percent > 100;
+
+      categoryHtml += `
+        <div class="category-row">
+          <div class="category-head">
+            <strong>${category}${over ? " ⚠️" : ""}</strong>
+            <span>$${money(spent)} / $${money(budget)}｜${percent}%</span>
+          </div>
+
+          <div class="progress-bg">
+            <div
+              class="progress-bar ${over ? "warning" : ""}"
+              style="width:${Math.min(percent, 100)}%;"
+            ></div>
+          </div>
+        </div>
+      `;
+    });
+
+    document.getElementById("categoryBudgetList").innerHTML = categoryHtml;
+
+  } catch (error) {
+    document.getElementById("financeSummary").textContent =
+      "財務資料載入失敗，請檢查 Google Sheet 發布設定。";
+    console.error(error);
+  }
+}
 function getWeatherIcon(code) {
   if (code === 0) return "☀️";
   if ([1, 2].includes(code)) return "🌤️";
